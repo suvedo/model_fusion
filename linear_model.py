@@ -3,7 +3,7 @@
 
 import torch
 from torch import nn
-from util import DataIter, cal_eer, cal_auc
+from util import DataIter, cal_eer, cal_auc, get_process_feat
 
 
 class NormLinearModel(nn.Module):
@@ -12,10 +12,24 @@ class NormLinearModel(nn.Module):
         super(NormLinearModel, self).__init__()
         self.conf = conf
         self.build_model()
-        self.train_iter = DataIter(self.conf.train_file, self.conf.batch_size)
-        self.eval_iter  = DataIter(self.conf.eval_file)
+        process_feat_fn = None if not self.conf.do_feat_norm \
+                            else get_process_feat(DataIter(self.conf.train_file))
+        self.train_iter = DataIter(self.conf.train_file, process_feat=process_feat_fn)
+                                   #batch_size=self.conf.batch_size)
+        self.eval_iter  = DataIter(self.conf.eval_file, process_feat=process_feat_fn)
 
     def train_and_eval(self):
+        # 训练前计算验证集上metrics
+        for x, y in self.eval_iter:
+            y_hat = self.forward(torch.tensor(x))
+            if self.conf.eval_metrics == "eer":
+                eval_val = cal_eer(y, y_hat.detach().numpy().tolist())
+                print("init eer: {}".format(eval_val))
+            else:
+                eval_val = cal_auc(y, y_hat.detach().numpy().tolist())
+                print("init epoch auc: {}".format(eval_val))
+
+
         # 定义loss
         if self.conf.training_loss == "mse":
             self.loss = nn.MSELoss()
@@ -49,7 +63,7 @@ class NormLinearModel(nn.Module):
                 # 更新参数
                 self.optimizer.step()
 
-            print('{} epoch weights: {}'.format(i, self.weights / torch.sum(self.weights)))
+            print('{} epoch weights: {}'.format(i, self.weights))
 
             for x, y in self.eval_iter:
                 y_hat = self.forward(torch.tensor(x))

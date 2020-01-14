@@ -4,8 +4,9 @@
 class Config(object):
 
     def __init__(self):
-        self.train_file = "data/my_train.data"
-        self.eval_file  = "data/my_eval.data"
+        self.train_file = "data/transformer2.transformer.device.decoder.score.no-1.shuf"
+        self.eval_file  = "data/transformer2.transformer.device.decoder.score.no-1.shuf"
+        self.do_feat_norm = 1
 
         self.model_num = 4
 

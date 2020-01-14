@@ -7,10 +7,13 @@ import numpy as np
 
 class DataIter(object):
     
-    def __init__(self, file_name, batch_size = None, split_char = ' '):
+    def __init__(self, file_name, batch_size = None, split_char = ' ', 
+                 process_feat = None, process_label = None):
         self.file_name = file_name
         self.batch_size = batch_size
         self.split_char = split_char
+        self.process_feat = process_feat
+        self.process_label = process_label
         self.length = None
 
     def __iter__(self):
@@ -22,10 +25,18 @@ class DataIter(object):
                 x += [[float(feat) for feat in items[1:]]]
                 y += [[int(items[0])]]
                 if self.batch_size != None and len(x) == self.batch_size:
+                    if self.process_feat != None:
+                        x = self.process_feat(x)
+                    if self.process_label != None:
+                        y = self.process_label(y)
                     yield x, y
                     x, y = [], []
 
             if len(x) != 0:
+                if self.process_feat != None:
+                    x = self.process_feat(x)
+                if self.process_label != None:
+                    y = self.process_label(y)
                 yield x, y
                 x, y = [], []
 
@@ -87,4 +98,17 @@ def cal_auc(label, score):
     return 1.0 * pair_cnt / (pos_cnt * neg_cnt)
 
 
+def get_process_feat(data_iter):
+    # 计算均值方差
+    x = []
+    for xi, _ in data_iter:
+        x += xi
+    feats_mean = np.mean(x, axis=0)
+    feats_std  = np.std(x, axis=0, ddof=1)
+    print("feat mean: {}, feat std: {}".format(feats_mean, feats_std))
+    
+    def f(feats):
+        return ((feats - feats_mean) / feats_std).tolist()
+
+    return f
 
